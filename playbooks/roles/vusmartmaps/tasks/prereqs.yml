@@ -1,0 +1,51 @@
+---
+- name: Set Hostname
+  hostname:
+    name: "{{ node_hostname }}"
+
+- name: Update /etc/hosts for Datahub
+  lineinfile:
+    path: /etc/hosts
+    line: "103.65.21.234 vunet-datahub.cs2ccloud.internal vunet-datahub-0.cs2ccloud.internal"
+    state: present
+
+- name: Create 'vunet' group
+  group:
+    name: vunet
+    state: present
+
+- name: Create 'vunet' user
+  user:
+    name: "{{ vunet_user }}"
+    group: vunet
+    generate_ssh_key: yes
+    ssh_key_bits: 2048
+    ssh_key_file: .ssh/id_rsa
+    shell: /bin/bash
+
+- name: Setup SSH Authorization (cat id_rsa.pub >> authorized_keys)
+  shell: |
+    cat /home/{{ vunet_user }}/.ssh/id_rsa.pub >> /home/{{ vunet_user }}/.ssh/authorized_keys
+    cat /home/{{ vunet_user }}/.ssh/id_rsa.pub >> /home/{{ vunet_user }}/.ssh/known_hosts
+    chown -R {{ vunet_user }}:vunet /home/{{ vunet_user }}/.ssh
+  args:
+    executable: /bin/bash
+
+- name: Create Data Directory
+  file:
+    path: /data1
+    state: directory
+    owner: "{{ vunet_user }}"
+    group: vunet
+    recurse: yes
+
+- name: Apply Sysctl settings
+  sysctl:
+    name: "{{ item }}"
+    value: '2099999999'
+    state: present
+    reload: yes
+  loop:
+    - fs.inotify.max_user_watches
+    - fs.inotify.max_user_instances
+    - fs.inotify.max_queued_events
