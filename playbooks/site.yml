@@ -1,5 +1,5 @@
 ---
-- name: One-Touch vuSmartMaps 3.0 Installation
+- name: One-Touch vuSmartMaps Installation
   hosts: all
   become: yes
   vars:
@@ -8,6 +8,7 @@
     download_pass: "customer#7814"
     vunet_user: "vunet"
     target_dir: "/home/{{ ansible_user }}"
+    version: "3.0"  # Default, can be overridden
   
   roles:
     - vusmartmaps

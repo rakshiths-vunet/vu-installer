@@ -15,10 +15,13 @@ type Task struct {
 type InstallState struct {
 	NodeName  string
 	IP        sql.NullString
+	User      sql.NullString
+	Key       sql.NullString
+	Version   sql.NullString
 	Status    sql.NullString
 	Step      sql.NullString
-	StartTime sql.NullTime
 	ErrorMsg  sql.NullString
+	StartTime sql.NullTime
 	Tasks     sql.NullString
 	Locked    bool
 }
@@ -41,24 +44,48 @@ func InitDB(dbPath string) error {
 		start_time DATETIME,
 		error_msg TEXT,
 		tasks TEXT,
-		locked INTEGER DEFAULT 0
+		locked INTEGER DEFAULT 0,
+		version TEXT,
+		user TEXT,
+		key TEXT
 	)`)
 	return err
 }
 
 func Save(s InstallState) error {
-	_, err := db.Exec(`INSERT OR REPLACE INTO install_states (node_name, ip, status, step, start_time, error_msg, tasks, locked) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		s.NodeName, s.IP.String, s.Status.String, s.Step.String, s.StartTime.Time, s.ErrorMsg.String, s.Tasks.String, s.Locked)
+	_, err := db.Exec(`INSERT OR REPLACE INTO install_states (node_name, ip, status, step, start_time, error_msg, tasks, locked, version, user, key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		s.NodeName, s.IP.String, s.Status.String, s.Step.String, s.StartTime.Time, s.ErrorMsg.String, s.Tasks.String, s.Locked, s.Version.String, s.User.String, s.Key.String)
 	return err
 }
 
 func Load(nodeName string) (InstallState, error) {
 	var s InstallState
 	var locked int
-	err := db.QueryRow(`SELECT node_name, ip, status, step, start_time, error_msg, tasks, locked FROM install_states WHERE node_name = ?`, nodeName).Scan(
-		&s.NodeName, &s.IP, &s.Status, &s.Step, &s.StartTime, &s.ErrorMsg, &s.Tasks, &locked)
+	err := db.QueryRow(`SELECT node_name, ip, status, step, start_time, error_msg, tasks, locked, version, user, key FROM install_states WHERE node_name = ?`, nodeName).Scan(
+		&s.NodeName, &s.IP, &s.Status, &s.Step, &s.StartTime, &s.ErrorMsg, &s.Tasks, &locked, &s.Version, &s.User, &s.Key)
 	s.Locked = locked == 1
 	return s, err
+}
+
+func GetAll() ([]InstallState, error) {
+	rows, err := db.Query(`SELECT node_name, ip, status, step, start_time, error_msg, tasks, locked, version, user, key FROM install_states`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var states []InstallState
+	for rows.Next() {
+		var s InstallState
+		var locked int
+		err := rows.Scan(&s.NodeName, &s.IP, &s.Status, &s.Step, &s.StartTime, &s.ErrorMsg, &s.Tasks, &locked, &s.Version, &s.User, &s.Key)
+		if err != nil {
+			return nil, err
+		}
+		s.Locked = locked == 1
+		states = append(states, s)
+	}
+	return states, rows.Err()
 }
 
 func LockNode(nodeName string) error {

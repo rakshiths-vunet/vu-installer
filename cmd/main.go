@@ -14,10 +14,11 @@ import (
 )
 
 type InstallRequest struct {
-	Name string `json:"name"`
-	IP   string `json:"ip"`
-	User string `json:"user"`
-	Key  string `json:"key"`
+	Name    string `json:"name"`
+	IP      string `json:"ip"`
+	User    string `json:"user"`
+	Key     string `json:"key"`
+	Version string `json:"version"`
 }
 
 type InstallResponse struct {
@@ -113,6 +114,58 @@ func main() {
 		json.NewEncoder(w).Encode(response)
 	})
 
+	// Health handler
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		response := map[string]string{
+			"status": "healthy",
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	})
+
+	// Nodes handler
+	http.HandleFunc("/nodes", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		states, err := state.GetAll()
+		if err != nil {
+			log.WithError(err).Error("Failed to get all states")
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		var nodes []map[string]interface{}
+		for _, s := range states {
+			startTimeStr := ""
+			if s.StartTime.Valid {
+				startTimeStr = s.StartTime.Time.Format(time.RFC3339)
+			}
+
+			node := map[string]interface{}{
+				"node_name":  s.NodeName,
+				"ip":         s.IP.String,
+				"version":    s.Version.String,
+				"status":     s.Status.String,
+				"has_vsmaps": s.Status.Valid && s.Status.String == "SUCCESS",
+				"start_time": startTimeStr,
+				"step":       s.Step.String,
+			}
+			nodes = append(nodes, node)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(nodes)
+	})
+
 	// HTTP handler
 	http.HandleFunc("/install", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -125,6 +178,16 @@ func main() {
 			log.WithError(err).Error("Failed to decode request")
 			http.Error(w, "Bad request", http.StatusBadRequest)
 			return
+		}
+
+		// Set default SSH key if not provided
+		if req.Key == "" {
+			req.Key = "~/.ssh/id_rsa"
+		}
+
+		// Set default user if not provided
+		if req.User == "" {
+			req.User = "vunet"
 		}
 
 		log.WithFields(log.Fields{"node": req.Name, "ip": req.IP}).Info("Received install request")
@@ -162,6 +225,9 @@ func main() {
 		s = state.InstallState{
 			NodeName:  req.Name,
 			IP:        sql.NullString{String: req.IP, Valid: true},
+			User:      sql.NullString{String: req.User, Valid: true},
+			Key:       sql.NullString{String: req.Key, Valid: true},
+			Version:   sql.NullString{String: req.Version, Valid: true},
 			Status:    sql.NullString{String: "RUNNING", Valid: true},
 			Step:      sql.NullString{String: "Starting", Valid: true},
 			StartTime: sql.NullTime{Time: time.Now(), Valid: true},
@@ -189,13 +255,13 @@ func main() {
 			}
 
 			// Run playbook
-			if err := runner.Run(req.Name, req.IP); err != nil {
+			if err := runner.Run(req.Name, req.IP, req.Version, ""); err != nil {
 				log.WithError(err).Error("Playbook failed")
 				s.Status = sql.NullString{String: "FAILED", Valid: true}
 				s.ErrorMsg = sql.NullString{String: err.Error(), Valid: true}
 			} else {
 				// Monitor install log for completion
-				if err := runner.MonitorInstallLog(req.Name); err != nil {
+				if err := runner.MonitorInstallLog(req.Name, req.Version); err != nil {
 					log.WithError(err).Error("Installation monitoring failed")
 					s.Status = sql.NullString{String: "FAILED", Valid: true}
 					s.ErrorMsg = sql.NullString{String: err.Error(), Valid: true}
@@ -208,7 +274,7 @@ func main() {
 
 			s.Locked = false
 			state.Save(s)
-			runner.Cleanup()
+			runner.Cleanup(req.Name)
 		}()
 
 		resp := InstallResponse{Status: "accepted", Message: "Installation started"}
@@ -216,9 +282,124 @@ func main() {
 		json.NewEncoder(w).Encode(resp)
 	})
 
+	// Retry handler
+	http.HandleFunc("/retry", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req struct {
+			Name string `json:"name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			log.WithError(err).Error("Failed to decode retry request")
+			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
+		}
+
+		log.WithFields(log.Fields{"node": req.Name}).Info("Received retry request")
+
+		// Load current state
+		s, err := state.Load(req.Name)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				http.Error(w, "Node not found", http.StatusNotFound)
+			} else {
+				log.WithError(err).Error("Failed to load state")
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		// Check if failed
+		if !s.Status.Valid || s.Status.String != "FAILED" {
+			http.Error(w, "Node is not in failed state", http.StatusConflict)
+			return
+		}
+
+		// Try to lock
+		if err := state.LockNode(req.Name); err != nil {
+			if err == sql.ErrNoRows {
+				log.WithFields(log.Fields{"node": req.Name}).Warn("Node is locked or busy")
+				http.Error(w, "Node is busy", http.StatusConflict)
+			} else {
+				log.WithError(err).Error("Failed to lock node")
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		// Update state to RUNNING
+		s.Status = sql.NullString{String: "RUNNING", Valid: true}
+		s.Step = sql.NullString{String: "Retrying", Valid: true}
+		s.ErrorMsg = sql.NullString{}
+		s.StartTime = sql.NullTime{Time: time.Now(), Valid: true}
+		if err := state.Save(s); err != nil {
+			log.WithError(err).Error("Failed to save state")
+			state.UnlockNode(req.Name)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		// Run retry in goroutine
+		go func() {
+			defer state.UnlockNode(req.Name)
+
+			// Generate inventory
+			if err := runner.GenerateInventory(req.Name, s.IP.String, s.User.String, s.Key.String); err != nil {
+				log.WithError(err).Error("Failed to generate inventory")
+				s.Status = sql.NullString{String: "FAILED", Valid: true}
+				s.ErrorMsg = sql.NullString{String: err.Error(), Valid: true}
+				state.Save(s)
+				return
+			}
+
+			// Find failed task to resume from
+			startAt := ""
+			var tasks []state.Task
+			if s.Tasks.Valid {
+				if err := json.Unmarshal([]byte(s.Tasks.String), &tasks); err == nil {
+					for _, t := range tasks {
+						if t.Status == "failed" || t.Status == "unreachable" || t.Status == "running" {
+							startAt = t.Name
+							break
+						}
+					}
+				}
+			}
+
+			// Run playbook
+			if err := runner.Run(req.Name, s.IP.String, s.Version.String, startAt); err != nil {
+				log.WithError(err).Error("Playbook failed")
+				s.Status = sql.NullString{String: "FAILED", Valid: true}
+				s.ErrorMsg = sql.NullString{String: err.Error(), Valid: true}
+			} else {
+				// Monitor install log for completion
+				if err := runner.MonitorInstallLog(req.Name, s.Version.String); err != nil {
+					log.WithError(err).Error("Installation monitoring failed")
+					s.Status = sql.NullString{String: "FAILED", Valid: true}
+					s.ErrorMsg = sql.NullString{String: err.Error(), Valid: true}
+				} else {
+					log.Info("Installation successful")
+					s.Status = sql.NullString{String: "SUCCESS", Valid: true}
+					s.Step = sql.NullString{String: "Completed", Valid: true}
+				}
+			}
+
+			s.Locked = false
+			state.Save(s)
+			runner.Cleanup(req.Name)
+		}()
+
+		resp := InstallResponse{Status: "accepted", Message: "Retry started"}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	})
+
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		port = "9091"
 	}
 
 	log.WithFields(log.Fields{"port": port}).Info("Starting server")

@@ -1,18 +1,47 @@
 ---
 - import_tasks: prereqs.yml
 
-- name: Copy and Configure Sizing Template
+- name: Copy and Configure Sizing Template for 3.0
   template:
     src: "sizing.j2"
     dest: "{{ target_dir }}/sizing-validation.yaml"
     owner: "{{ vunet_user }}"
     group: "vunet"
     mode: '0644'
+  when: version == "3.0"
+
+- name: Copy and Configure Sizing File for 2.16
+  copy:
+    src: "{{ inventory_dir }}/configs/2.16-sizing-validation.yaml"
+    dest: "{{ target_dir }}/sizing-validation.yaml"
+    owner: "{{ vunet_user }}"
+    group: "vunet"
+    mode: '0644'
+  when: version == "2.16"
+
+- name: Replace hostname and IP in 2.16 sizing file
+  replace:
+    path: "{{ target_dir }}/sizing-validation.yaml"
+    regexp: 'ashok-vm'
+    replace: "{{ node_hostname }}"
+  when: version == "2.16"
+
+- name: Replace IP in 2.16 sizing file
+  replace:
+    path: "{{ target_dir }}/sizing-validation.yaml"
+    regexp: '172\.23\.0\.10'
+    replace: "{{ private_ip }}"
+  when: version == "2.16"
 
 - name: Download vuSmartMaps Tarball
-  shell: wget --user={{ download_user }} --password={{ download_pass }} --no-check-certificate -O {{ target_dir }}/vuSmartMaps_offline_NG-3.0.tar.gz https://download.vunetsystems.com/_Downloads_/_vuDocker_/3.0/vuSmartMaps_offline_NG-3.0.tar.gz
+  shell: |
+    {% if version == "3.0" %}
+    wget --user={{ download_user }} --password={{ download_pass }} --no-check-certificate -O {{ target_dir }}/vuSmartMaps_offline_NG-3.0.tar.gz https://download.vunetsystems.com/_Downloads_/_vuDocker_/3.0/vuSmartMaps_offline_NG-3.0.tar.gz
+    {% else %}
+    wget --user={{ download_user }} --password={{ download_pass }} --no-check-certificate -O {{ target_dir }}/vuSmartMaps_offline_NG-{{ version }}.tar.gz https://download.vunetsystems.com/_Downloads_/_vuDocker_/{{ version }}/vuSmartMaps_offline_NG-{{ version }}.tar.gz
+    {% endif %}
   args:
-    creates: "{{ target_dir }}/vuSmartMaps_offline_NG-3.0.tar.gz"
+    creates: "{{ target_dir }}/vuSmartMaps_offline_NG-{{ version }}.tar.gz"
 
 - name: Log download status
   debug:
@@ -20,7 +49,7 @@
 
 - name: Extract Tarball
   unarchive:
-    src: "{{ target_dir }}/vuSmartMaps_offline_NG-3.0.tar.gz"
+    src: "{{ target_dir }}/vuSmartMaps_offline_NG-{{ version }}.tar.gz"
     dest: "{{ target_dir }}/"
     remote_src: yes
     owner: "{{ vunet_user }}"
@@ -31,23 +60,33 @@
   args:
     chdir: "{{ target_dir }}"
 
-- name: Run Installer in Background (Nohup)
+- name: Run Installer
   shell: |
-    nohup ./build/launcher_linux_x86 \
-      --sizing sizing-validation.yaml \
+    ./build/launcher_linux_x86 \
+      --sizing ./sizing-validation.yaml \
       --ignore-preflight \
-      --debug > install_log.txt 2>&1 &
+      --debug > install_log.txt 2>&1
   args:
     chdir: "{{ target_dir }}"
   environment:
     username: "{{ vunet_user }}"
     private_key_path: ".ssh/id_rsa"
   become_user: "{{ vunet_user }}" # Run as vunet user
-  async: 45
-  poll: 0
+  async: 3600
+  poll: 10
 
-- name: Log installer status
-  shell: tail -20 install_log.txt
+- name: Verify Installation Success
+  shell: |
+    if grep -q "Successfully installed vuSmartMaps" install_log.txt; then
+      echo "Installation successful"
+      tail -20 install_log.txt
+    else
+      echo "Installation failed - log output:"
+      tail -20 install_log.txt
+      exit 1
+    fi
   args:
     chdir: "{{ target_dir }}"
   become_user: "{{ vunet_user }}"
+  register: install_result
+  failed_when: install_result.rc != 0

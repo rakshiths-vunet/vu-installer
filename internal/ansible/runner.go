@@ -24,8 +24,12 @@ type Runner struct {
 
 func (r *Runner) GenerateInventory(nodeName, ip, user, keyPath string) error {
 	log.WithFields(log.Fields{"node": nodeName, "ip": ip}).Info("Generating Ansible inventory")
-	// Ensure directory exists
-	if err := os.MkdirAll(filepath.Dir(r.InventoryPath), 0755); err != nil {
+
+	// Create unique inventory filename
+	inventoryFile := fmt.Sprintf("inventory_%s.ini", nodeName)
+
+	// Ensure directory exists (if path contains dir)
+	if err := os.MkdirAll(filepath.Dir(inventoryFile), 0755); err != nil {
 		log.WithError(err).Error("Failed to create inventory directory")
 		return err
 	}
@@ -33,7 +37,7 @@ func (r *Runner) GenerateInventory(nodeName, ip, user, keyPath string) error {
 	content := fmt.Sprintf("[%s]\n%s ansible_user=%s ansible_ssh_private_key_file=%s ansible_ssh_common_args='-o StrictHostKeyChecking=no'\n",
 		nodeName, ip, user, keyPath)
 
-	err := os.WriteFile(r.InventoryPath, []byte(content), 0644)
+	err := os.WriteFile(inventoryFile, []byte(content), 0644)
 	if err != nil {
 		log.WithError(err).Error("Failed to write inventory file")
 	} else {
@@ -42,10 +46,10 @@ func (r *Runner) GenerateInventory(nodeName, ip, user, keyPath string) error {
 	return err
 }
 
-func (r *Runner) Run(nodeName, ip string) error {
-	log.WithFields(log.Fields{"node": nodeName, "ip": ip}).Info("Starting Ansible playbook execution")
+func (r *Runner) Run(nodeName, ip, version, startAtTask string) error {
+	log.WithFields(log.Fields{"node": nodeName, "ip": ip, "version": version, "start_at": startAtTask}).Info("Starting Ansible playbook execution")
 	// Pass Go variables to Ansible as Extra Vars
-	extraVars := fmt.Sprintf("private_ip=%s node_hostname=%s", ip, nodeName)
+	extraVars := fmt.Sprintf("private_ip=%s node_hostname=%s version=%s", ip, nodeName, version)
 
 	// Open log file for Ansible output
 	logFile, err := os.Create(fmt.Sprintf("ansible_%s.log", nodeName))
@@ -55,12 +59,20 @@ func (r *Runner) Run(nodeName, ip string) error {
 	}
 	defer logFile.Close()
 
-	cmd := exec.Command("ansible-playbook",
+	// Use unique inventory file
+	inventoryFile := fmt.Sprintf("inventory_%s.ini", nodeName)
 
-		"-i", r.InventoryPath,
+	args := []string{
+		"-i", inventoryFile,
 		r.PlaybookPath,
 		"--extra-vars", extraVars,
-	)
+	}
+
+	if startAtTask != "" {
+		args = append(args, "--start-at-task", startAtTask)
+	}
+
+	cmd := exec.Command("ansible-playbook", args...)
 
 	// Get stdout pipe
 	stdout, err := cmd.StdoutPipe()
@@ -82,7 +94,7 @@ func (r *Runner) Run(nodeName, ip string) error {
 	scanner := bufio.NewScanner(stdout)
 	tasks := []state.Task{}
 	taskRegex := regexp.MustCompile(`^TASK \[(.*)\]`)
-	resultRegex := regexp.MustCompile(`^(ok|failed|changed|skipped|unreachable):`)
+	resultRegex := regexp.MustCompile(`^(ok|failed|changed|skipped|unreachable|fatal):`)
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -104,7 +116,7 @@ func (r *Runner) Run(nodeName, ip string) error {
 				switch result {
 				case "ok", "changed":
 					lastTask.Status = "success"
-				case "failed":
+				case "failed", "fatal":
 					lastTask.Status = "failed"
 				case "skipped":
 					lastTask.Status = "skipped"
@@ -132,12 +144,13 @@ func (r *Runner) Run(nodeName, ip string) error {
 	return err
 }
 
-func (r *Runner) MonitorInstallLog(nodeName string) error {
+func (r *Runner) MonitorInstallLog(nodeName, version string) error {
 	log.WithField("node", nodeName).Info("Monitoring install_log.txt for completion")
 	completionMessage := "Installation completed"
 	timeout := 60 // minutes
+	installPath := fmt.Sprintf("/home/vunet/vuSmartMaps_offline_NG-%s/install_log.txt", version)
 	for i := 0; i < timeout; i++ {
-		cmd := exec.Command("ansible", "-i", r.InventoryPath, nodeName, "-m", "shell", "-a", fmt.Sprintf("grep -q '%s' /home/vunet/vuSmartMaps_offline_NG-3.0/install_log.txt && echo found || echo not", completionMessage))
+		cmd := exec.Command("ansible", "-i", r.InventoryPath, nodeName, "-m", "shell", "-a", fmt.Sprintf("grep -q '%s' %s && echo found || echo not", completionMessage, installPath))
 		output, err := cmd.Output()
 		if err != nil {
 			log.WithError(err).Error("Failed to check install log")
@@ -152,9 +165,10 @@ func (r *Runner) MonitorInstallLog(nodeName string) error {
 	return fmt.Errorf("timeout waiting for installation completion")
 }
 
-func (r *Runner) Cleanup() {
-	log.Info("Cleaning up inventory file")
-	err := os.Remove(r.InventoryPath)
+func (r *Runner) Cleanup(nodeName string) {
+	log.WithField("node", nodeName).Info("Cleaning up inventory file")
+	inventoryFile := fmt.Sprintf("inventory_%s.ini", nodeName)
+	err := os.Remove(inventoryFile)
 	if err != nil {
 		log.WithError(err).Warn("Failed to remove inventory file")
 	} else {
