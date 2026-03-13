@@ -10,28 +10,23 @@
     mode: '0644'
   when: version == "3.0"
 
-- name: Copy and Configure Sizing File for 2.16
-  copy:
-    src: "{{ inventory_dir }}/configs/2.16-sizing-validation.yaml"
+- name: Copy and Configure Sizing Template for 2.16
+  template:
+    src: "2.16-sizing.j2"
     dest: "{{ target_dir }}/sizing-validation.yaml"
     owner: "{{ vunet_user }}"
     group: "vunet"
     mode: '0644'
   when: version == "2.16"
 
-- name: Replace hostname and IP in 2.16 sizing file
-  replace:
-    path: "{{ target_dir }}/sizing-validation.yaml"
-    regexp: 'ashok-vm'
-    replace: "{{ node_hostname }}"
-  when: version == "2.16"
-
-- name: Replace IP in 2.16 sizing file
-  replace:
-    path: "{{ target_dir }}/sizing-validation.yaml"
-    regexp: '172\.23\.0\.10'
-    replace: "{{ private_ip }}"
-  when: version == "2.16"
+- name: Copy and Configure Sizing Template for 2.15
+  template:
+    src: "2.15-sizing.j2"
+    dest: "{{ target_dir }}/sizing-validation.yaml"
+    owner: "{{ vunet_user }}"
+    group: "vunet"
+    mode: '0644'
+  when: version == "2.15"
 
 - name: Download vuSmartMaps Tarball
   shell: |

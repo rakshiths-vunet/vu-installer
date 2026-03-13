@@ -1,67 +1,54 @@
-#3.0
-#primary_images:
-  #location: "vunet-registry:5000"
-  #username: "7CGNByYW4XYnyAqZsX4d0g=="
-  #password: "7CGNByYW4XYnyAqZsX4d0g=="
-  #email: "devsecops@vunetsystems.com"
-
 primary_images:
   location: "https://ghcr.io"
   username: "CPQPQ8bQ7W5Krv68CvZJ6w=="
-  password: "Nf0oY7eKPCDtzVBnFQpKYRp6ZL3SgD3B56R5jyuFye4lSzLiwfEIrMJfkT0ntoZQ"
+  password: "cywl9KXhH9zYeUcofEzQxrG/s2DGpCZ9y2UMfhfBlSPqFS6+mnUmtCYNP1DXOnOo"
   email: "devsecops@vunetsystems.com"
-
 sizing:
   category:
     - "data-store-optimised"
     - "data-hub-optimised"
     - "core-services-optimised"
-
   env_name: "vm"
-
   node:
-    - ip_address: "{{ private_ip }}"
+    - ip_address: "216.48.184.251"
       is_master: true
       storage:
         default: ["/data1"]
         host: ["/data1"]
-
   # vustream & vublock related components
   deployments:
     - name: pipeline
       resource_limit:
         min:
-          cpu: "0.1"
+          cpu: "0.5"
           memory: "128Mi"
         max:
-          cpu: "0.5"
+          cpu: "1"
           memory: "256Mi"
-
-            #local_registry:
-            #replica: 1
-            #disk:
-            #host: "100Gi"
-            #pv_mapper:
-            #- name: "0"
-            # size: "100Gi"
-            #hostPath: "/data1"
-            #nodeName: "e2e-102-161"
-            #nodeIP: "216.48.185.161"
-            #dirPath: "registry"
-
   # service information
   services:
+    # longhorn
+    - name: "longhorn"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.5"
+          memory: "2Gi"
+      replica: 1
+      disk:
+        default: 2Gi
     # minio-operator
     - name: "minio-operator"
       resource_limit:
         min:
-          cpu: "0.2"
+          cpu: "0.3"
           memory: "500Mi"
         max:
-          cpu: "0.3"
-          memory: "1Gi"
+          cpu: "0.5"
+          memory: "2Gi"
       replica: 1
-
     # minio-tenant
     - name: "minio-tenant"
       resource_limit:
@@ -70,21 +57,12 @@ sizing:
           memory: "500Mi"
         max:
           cpu: "0.5"
-          memory: "1Gi"
+          memory: "2Gi"
       replica: 1
       disk:
-        host: 20Gi
-      pv_mapper:
-        - name: "minio-tenant"
-          size: "20Gi"
-          hostPath: "/data1"
-          nodeName: "{{ node_hostname }}"
-          nodeIP: "{{ private_ip }}"
-          dirPath: "minio"
-          storageClass: "local-storage"
-
+        default: 20Gi
     # postgresql
-    - name: "postgresql-ha"
+    - name: "postgresql"
       resource_limit:
         min:
           cpu: "0.3"
@@ -92,32 +70,9 @@ sizing:
         max:
           cpu: "0.5"
           memory: "2Gi"
-      replica: 3
+      replica: 1
       disk:
-        host: 10Gi
-      pv_mapper:
-        - name: "0"
-          nodeName: "{{ node_hostname }}"
-          hostPath: "/data1"
-          size: "10Gi"
-          storageClass: "local-storage"
-          dirPath: "postgresql-HA-0"
-          nodeIP: "{{ private_ip }}"
-        - name: "1"
-          nodeName: "{{ node_hostname }}"
-          hostPath: "/data1"
-          size: "10Gi"
-          storageClass: "local-storage"
-          dirPath: "postgresql-HA-1"
-          nodeIP: "{{ private_ip }}"
-        - name: "2"
-          nodeName: "{{ node_hostname }}"
-          hostPath: "/data1"
-          size: "10Gi"
-          storageClass: "local-storage"
-          dirPath: "postgresql-HA-2"
-          nodeIP: "{{ private_ip }}"
-
+        default: 10Gi
     # kafka-broker
     - name: "kafka-broker"
       resource_limit:
@@ -134,15 +89,9 @@ sizing:
         - name: "0"
           size: "12Gi"
           hostPath: "/data1"
-          nodeName: "{{ node_hostname }}"
-          nodeIP: "{{ private_ip }}"
+          nodeName: "e2e-101-251"
+          nodeIP: "216.48.184.251"
           dirPath: "kafka_dir"
-      config_override:
-        advListener: "dnsname"
-        domainName: "cs2ccloud.internal"
-        commonfqdn: "vunet-datahub.cs2ccloud.internal"
-        datahubNodes: []
-
     # kafka-zookeeper
     - name: "kafka-zookeeper"
       resource_limit:
@@ -154,23 +103,7 @@ sizing:
           memory: "2Gi"
       replica: 1
       disk:
-        host: 4Gi
-      pv_mapper:
-        - name: "datalogdir-kafka-cluster-cp-zookeeper-0"
-          size: "5Gi"
-          storageClass: "local-storage"
-          hostPath: "/data1"
-          dirPath: "zookeeper-log"
-          nodeName: "{{ node_hostname }}"
-          nodeIP: "{{ private_ip }}"
-        - name: "datadir-kafka-cluster-cp-zookeeper-0"
-          size: "5Gi"
-          storageClass: "local-storage"
-          hostPath: "/data1"
-          dirPath: "kafka_zookeeper_dir"
-          nodeName: "{{ node_hostname }}"
-          nodeIP: "{{ private_ip }}"
-
+        default: 5Gi
     # kafka-connect
     - name: "kafka-connect"
       resource_limit:
@@ -181,7 +114,6 @@ sizing:
           cpu: "0.5"
           memory: "2Gi"
       replica: 1
-
     # clickhouse-operator
     - name: "ch-operator"
       resource_limit:
@@ -192,7 +124,6 @@ sizing:
           cpu: "0.5"
           memory: "2Gi"
       replica: 1
-
     # clickhouse-keeper
     - name: "ch-keeper"
       resource_limit:
@@ -209,18 +140,17 @@ sizing:
         - name: "0"
           size: "6Gi"
           hostPath: "/data1"
-          nodeName: "{{ node_hostname }}"
-          nodeIP: "{{ private_ip }}"
+          nodeName: "e2e-101-251"
+          nodeIP: "216.48.184.251"
           dirPath: "clickhouse-keeper"
-
     # clickhouse database
     - name: "ch-database"
       resource_limit:
         min:
-          cpu: "2"
+          cpu: "0.3"
           memory: "500Mi"
         max:
-          cpu: "4"
+          cpu: "0.5"
           memory: "6Gi"
       replica: 1
       disk:
@@ -229,72 +159,20 @@ sizing:
         - name: "warm-chi-clickhouse-vusmart-0-0-0"
           size: "12Gi"
           hostPath: "/data1"
-          nodeName: "{{ node_hostname }}"
-          nodeIP: "{{ private_ip }}"
+          nodeName: "e2e-101-251"
+          nodeIP: "216.48.184.251"
           dirPath: "clickhouse-warm"
-
         - name: "clickhouse-data-volume-chi-clickhouse-vusmart-0-0-0"
           size: "12Gi"
           hostPath: "/data1"
-          nodeName: "{{ node_hostname }}"
-          nodeIP: "{{ private_ip }}"
+          nodeName: "e2e-101-251"
+          nodeIP: "216.48.184.251"
           dirPath: "clickhouse"
-
       config_override:
-        persistence.host.encrypted: "true"
         persistence.host.hot.enabled: "true"
-        #update this value to false, if WARM is disabled
         persistence.host.warm.enabled: "true"
-        #update this value to false, if COLD is disabled
-        persistence.cold.enabled: "true"
-        replicaCount: 1
-
     # telegraf-vusmart
     - name: "telegraf-vusmart"
-      resource_limit:
-        min:
-          cpu: "0.1"
-          memory: "250Mi"
-        max:
-          cpu: "0.3"
-          memory: "500Mi"
-      replica: 1
-
-    # telegraf-infra
-    - name: "telegraf-infra"
-      resource_limit:
-        min:
-          cpu: "0.2"
-          memory: "250Mi"
-        max:
-          cpu: "0.5"
-          memory: "500Mi"
-      replica: 1
-
-    # redis
-    - name: "redis"
-      resource_limit:
-        min:
-          cpu: "0.2"
-          memory: "500Mi"
-        max:
-          cpu: "0.3"
-          memory: "2Gi"
-      replica: 1
-
-    # orchestration
-    - name: "orchestrator"
-      resource_limit:
-        min:
-          cpu: "0.1"
-          memory: "250Mi"
-        max:
-          cpu: "0.2"
-          memory: "500Mi"
-      replica: 1
-
-    # docusaurus
-    - name: "docusaurus"
       resource_limit:
         min:
           cpu: "0.3"
@@ -303,7 +181,36 @@ sizing:
           cpu: "0.5"
           memory: "1Gi"
       replica: 1
-
+    # telegraf-infra
+    - name: "telegraf-infra"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.5"
+          memory: "1Gi"
+      replica: 1
+    # redis
+    - name: "redis"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.5"
+          memory: "2Gi"
+      replica: 1
+    # orchestration
+    - name: "orchestrator"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.5"
+          memory: "1Gi"
+      replica: 1
     # traefik
     - name: "traefik"
       resource_limit:
@@ -314,7 +221,6 @@ sizing:
           cpu: "0.5"
           memory: "2Gi"
       replica: 1
-
     # renderer-service
     - name: "nairobi-renderer"
       resource_limit:
@@ -322,21 +228,19 @@ sizing:
           cpu: "0.3"
           memory: "500Mi"
         max:
-          cpu: "3"
-          memory: "4Gi"
+          cpu: "0.5"
+          memory: "2Gi"
       replica: 1
-
-    # reporter-service
+    # reporter service
     - name: "nairobi-reporter"
       resource_limit:
         min:
-          cpu: "0.2"
+          cpu: "0.3"
           memory: "500Mi"
         max:
-          cpu: "0.3"
+          cpu: "0.5"
           memory: "2Gi"
       replica: 1
-
     # nairobi
     - name: "nairobi-app"
       resource_limit:
@@ -349,9 +253,6 @@ sizing:
       replica: 1
       disk:
         default: 2Gi
-      config_override:
-        address.public: "{{ private_ip }}/vui"
-
     # keycloak
     - name: "keycloak"
       resource_limit:
@@ -362,7 +263,6 @@ sizing:
           cpu: "0.5"
           memory: "2Gi"
       replica: 1
-
     # denver
     - name: "denver"
       resource_limit:
@@ -371,9 +271,8 @@ sizing:
           memory: "500Mi"
         max:
           cpu: "0.5"
-          memory: "6Gi"
+          memory: "4Gi"
       replica: 1
-
     # vuinterface
     - name: "vuinterface"
       resource_limit:
@@ -385,14 +284,7 @@ sizing:
           memory: "4Gi"
       replica: 1
       config_override:
-        #TRAEFIK_IP
-        env.0.value: "{{ private_ip }}"
-        #VSMAPS_DOMAIN
-        env.1.value: "{{ private_ip }}"
-        #KAFKA_EXTERNAL_HOST
-        ## The below DNS entry needs to be added under /etc/hosts/
-        env.2.value: "vunet-datahub.cs2ccloud.internal"
-
+        env.0.value: "216.48.184.251"
     # dao
     - name: "dao"
       resource_limit:
@@ -403,14 +295,6 @@ sizing:
           cpu: "0.5"
           memory: "4Gi"
       replica: 1
-      config_override:
-        #TRAEFIK_IP
-        env.0.value: "{{ private_ip }}"
-        #VSMAPS_DOMAIN
-        env.1.value: "{{ private_ip }}"
-        #KAFKA_EXTERNAL_HOST
-        env.2.value: "vunet-datahub.cs2ccloud.internal"
-
     # alert
     - name: "alert"
       resource_limit:
@@ -421,15 +305,6 @@ sizing:
           cpu: "0.5"
           memory: "1Gi"
       replica: 1
-      config_override:
-        #TRAEFIK_IP
-        env.0.value: "{{ private_ip }}"
-        #VSMAPS_DOMAIN
-        env.1.value: "{{ private_ip }}"
-        #KAFKA_EXTERNAL_HOST
-        # The below DNS entry needs to be added under /etc/hosts/
-        env.2.value: "vunet-datahub.cs2ccloud.internal"
-
     #vublock-service
     - name: "vublock"
       resource_limit:
@@ -440,49 +315,23 @@ sizing:
           cpu: "0.5"
           memory: "2Gi"
       replica: 1
-
     #vublock-store
     - name: "vublock-store"
       resource_limit:
         min:
-          cpu: "0.2"
-          memory: "250Mi"
-        max:
           cpu: "0.3"
           memory: "500Mi"
+        max:
+          cpu: "0.5"
+          memory: "2Gi"
       replica: 1
-
     # post-jobs
     - name: "post-jobs"
       resource_limit:
         min:
-          cpu: "0.2"
-          memory: "250Mi"
-        max:
           cpu: "0.3"
           memory: "500Mi"
-      replica: 1
-
-    # alert-go
-    - name: "alert-go"
-      resource_limit:
-        min:
-          cpu: "0.2"
-          memory: "250Mi"
         max:
-          cpu: "2"
-          memory: "4Gi"
-      replica: 1
-      config_override:
-        envConfig.VSMAPS_DOMAIN: "{{ private_ip }}"
-
-    # notification-service
-    - name: "notification-service"
-      resource_limit:
-        min:
-          cpu: "0.2"
-          memory: "250Mi"
-        max:
-          cpu: "0.3"
-          memory: "500Mi"
+          cpu: "0.5"
+          memory: "2Gi"
       replica: 1

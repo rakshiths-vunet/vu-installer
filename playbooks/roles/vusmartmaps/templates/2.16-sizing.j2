@@ -1,10 +1,9 @@
-#3.0
 #primary_images:
-  #location: "vunet-registry:5000"
-  #username: "7CGNByYW4XYnyAqZsX4d0g=="
-  #password: "7CGNByYW4XYnyAqZsX4d0g=="
-  #email: "devsecops@vunetsystems.com"
-
+#location: "vunet-registry:5000"
+#username: "7CGNByYW4XYnyAqZsX4d0g=="
+#password: "7CGNByYW4XYnyAqZsX4d0g=="
+#email: "devsecops@vunetsystems.com"
+#2.16
 primary_images:
   location: "https://ghcr.io"
   username: "CPQPQ8bQ7W5Krv68CvZJ6w=="
@@ -37,20 +36,21 @@ sizing:
           cpu: "0.5"
           memory: "256Mi"
 
-            #local_registry:
-            #replica: 1
-            #disk:
-            #host: "100Gi"
-            #pv_mapper:
-            #- name: "0"
-            # size: "100Gi"
-            #hostPath: "/data1"
-            #nodeName: "e2e-102-161"
-            #nodeIP: "216.48.185.161"
-            #dirPath: "registry"
-
   # service information
   services:
+    # longhorn
+    - name: "longhorn"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.5"
+          memory: "2Gi"
+      replica: 1
+      disk:
+        default: 2Gi
+
     # minio-operator
     - name: "minio-operator"
       resource_limit:
@@ -84,7 +84,7 @@ sizing:
           storageClass: "local-storage"
 
     # postgresql
-    - name: "postgresql-ha"
+    - name: "postgresql"
       resource_limit:
         min:
           cpu: "0.3"
@@ -92,31 +92,9 @@ sizing:
         max:
           cpu: "0.5"
           memory: "2Gi"
-      replica: 3
+      replica: 1
       disk:
-        host: 10Gi
-      pv_mapper:
-        - name: "0"
-          nodeName: "{{ node_hostname }}"
-          hostPath: "/data1"
-          size: "10Gi"
-          storageClass: "local-storage"
-          dirPath: "postgresql-HA-0"
-          nodeIP: "{{ private_ip }}"
-        - name: "1"
-          nodeName: "{{ node_hostname }}"
-          hostPath: "/data1"
-          size: "10Gi"
-          storageClass: "local-storage"
-          dirPath: "postgresql-HA-1"
-          nodeIP: "{{ private_ip }}"
-        - name: "2"
-          nodeName: "{{ node_hostname }}"
-          hostPath: "/data1"
-          size: "10Gi"
-          storageClass: "local-storage"
-          dirPath: "postgresql-HA-2"
-          nodeIP: "{{ private_ip }}"
+        default: 10Gi
 
     # kafka-broker
     - name: "kafka-broker"
@@ -130,19 +108,14 @@ sizing:
       replica: 1
       disk:
         host: 5Gi
-      pv_mapper:
+      pv_mapper: 
         - name: "0"
           size: "12Gi"
           hostPath: "/data1"
           nodeName: "{{ node_hostname }}"
           nodeIP: "{{ private_ip }}"
           dirPath: "kafka_dir"
-      config_override:
-        advListener: "dnsname"
-        domainName: "cs2ccloud.internal"
-        commonfqdn: "vunet-datahub.cs2ccloud.internal"
-        datahubNodes: []
-
+        
     # kafka-zookeeper
     - name: "kafka-zookeeper"
       resource_limit:
@@ -170,7 +143,6 @@ sizing:
           dirPath: "kafka_zookeeper_dir"
           nodeName: "{{ node_hostname }}"
           nodeIP: "{{ private_ip }}"
-
     # kafka-connect
     - name: "kafka-connect"
       resource_limit:
@@ -205,7 +177,7 @@ sizing:
       replica: 1
       disk:
         host: 5Gi
-      pv_mapper:
+      pv_mapper: 
         - name: "0"
           size: "6Gi"
           hostPath: "/data1"
@@ -225,7 +197,7 @@ sizing:
       replica: 1
       disk:
         host: 5Gi
-      pv_mapper:
+      pv_mapper: 
         - name: "warm-chi-clickhouse-vusmart-0-0-0"
           size: "12Gi"
           hostPath: "/data1"
@@ -247,7 +219,6 @@ sizing:
         persistence.host.warm.enabled: "true"
         #update this value to false, if COLD is disabled
         persistence.cold.enabled: "true"
-        replicaCount: 1
 
     # telegraf-vusmart
     - name: "telegraf-vusmart"
@@ -281,7 +252,7 @@ sizing:
           cpu: "0.3"
           memory: "2Gi"
       replica: 1
-
+      
     # orchestration
     - name: "orchestrator"
       resource_limit:
@@ -292,7 +263,7 @@ sizing:
           cpu: "0.2"
           memory: "500Mi"
       replica: 1
-
+    
     # docusaurus
     - name: "docusaurus"
       resource_limit:
@@ -302,8 +273,19 @@ sizing:
         max:
           cpu: "0.5"
           memory: "1Gi"
-      replica: 1
+      replica: 1  
 
+    # fluentbit
+    - name: "fluentbit"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.5"
+          memory: "1Gi"
+      replica: 1
+    
     # traefik
     - name: "traefik"
       resource_limit:
@@ -326,7 +308,7 @@ sizing:
           memory: "4Gi"
       replica: 1
 
-    # reporter-service
+    # reporter service
     - name: "nairobi-reporter"
       resource_limit:
         min:
@@ -362,7 +344,7 @@ sizing:
           cpu: "0.5"
           memory: "2Gi"
       replica: 1
-
+      
     # denver
     - name: "denver"
       resource_limit:
@@ -371,7 +353,7 @@ sizing:
           memory: "500Mi"
         max:
           cpu: "0.5"
-          memory: "6Gi"
+          memory: "4Gi"
       replica: 1
 
     # vuinterface
@@ -385,14 +367,12 @@ sizing:
           memory: "4Gi"
       replica: 1
       config_override:
-        #TRAEFIK_IP
         env.0.value: "{{ private_ip }}"
-        #VSMAPS_DOMAIN
         env.1.value: "{{ private_ip }}"
-        #KAFKA_EXTERNAL_HOST
-        ## The below DNS entry needs to be added under /etc/hosts/
-        env.2.value: "vunet-datahub.cs2ccloud.internal"
-
+        #Update the DISK Names accordingly as per HOT and WARM and update the disk name, if the encryption isn't enabled
+        env.2.value: "default_encrypted_disk"
+        env.3.value: "warm_encrypted_disk"
+        
     # dao
     - name: "dao"
       resource_limit:
@@ -404,12 +384,11 @@ sizing:
           memory: "4Gi"
       replica: 1
       config_override:
-        #TRAEFIK_IP
         env.0.value: "{{ private_ip }}"
-        #VSMAPS_DOMAIN
         env.1.value: "{{ private_ip }}"
-        #KAFKA_EXTERNAL_HOST
-        env.2.value: "vunet-datahub.cs2ccloud.internal"
+        #Update the DISK Names accordingly as per HOT and WARM and update the disk name, if the encryption isn't enabled
+        env.2.value: "default_encrypted_disk"
+        env.3.value: "warm_encrypted_disk"
 
     # alert
     - name: "alert"
@@ -422,14 +401,9 @@ sizing:
           memory: "1Gi"
       replica: 1
       config_override:
-        #TRAEFIK_IP
         env.0.value: "{{ private_ip }}"
-        #VSMAPS_DOMAIN
         env.1.value: "{{ private_ip }}"
-        #KAFKA_EXTERNAL_HOST
-        # The below DNS entry needs to be added under /etc/hosts/
-        env.2.value: "vunet-datahub.cs2ccloud.internal"
-
+     
     #vublock-service
     - name: "vublock"
       resource_limit:
@@ -439,9 +413,9 @@ sizing:
         max:
           cpu: "0.5"
           memory: "2Gi"
-      replica: 1
-
-    #vublock-store
+      replica: 1   
+      
+    #vublock-store 
     - name: "vublock-store"
       resource_limit:
         min:
@@ -451,33 +425,9 @@ sizing:
           cpu: "0.3"
           memory: "500Mi"
       replica: 1
-
+      
     # post-jobs
     - name: "post-jobs"
-      resource_limit:
-        min:
-          cpu: "0.2"
-          memory: "250Mi"
-        max:
-          cpu: "0.3"
-          memory: "500Mi"
-      replica: 1
-
-    # alert-go
-    - name: "alert-go"
-      resource_limit:
-        min:
-          cpu: "0.2"
-          memory: "250Mi"
-        max:
-          cpu: "2"
-          memory: "4Gi"
-      replica: 1
-      config_override:
-        envConfig.VSMAPS_DOMAIN: "{{ private_ip }}"
-
-    # notification-service
-    - name: "notification-service"
       resource_limit:
         min:
           cpu: "0.2"
