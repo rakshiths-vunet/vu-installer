@@ -1,0 +1,556 @@
+#primary_images:
+  #location: "vunet-registry:5000"
+  #username: "7CGNByYW4XYnyAqZsX4d0g=="
+  #password: "7CGNByYW4XYnyAqZsX4d0g=="
+  #email: "devsecops@vunetsystems.com"
+
+primary_images:
+  location: "https://ghcr.io"
+  username: "CPQPQ8bQ7W5Krv68CvZJ6w=="
+  password: "Nf0oY7eKPCDtzVBnFQpKYRp6ZL3SgD3B56R5jyuFye4lSzLiwfEIrMJfkT0ntoZQ"
+  email: "devsecops@vunetsystems.com"
+
+sizing:
+  category:
+    - "data-store-optimised"
+    - "data-hub-optimised"
+    - "core-services-optimised"
+
+  env_name: "vm"
+
+  node:
+    - ip_address: "172.23.0.8"
+      is_master: true
+      storage:
+        default: ["/data1"]
+        host: ["/data1"]
+    - ip_address: "172.23.0.9"
+      is_master: false
+      storage:
+        default: ["/data1"]
+        host: ["/data1"]
+    - ip_address: "172.23.0.11"
+      is_master: false
+      storage:
+        default: ["/data1"]
+        host: ["/data1"]
+
+    
+  # vustream & vublock related components
+  deployments:
+    - name: pipeline
+      resource_limit:
+        min:
+          cpu: "0.1"
+          memory: "128Mi"
+        max:
+          cpu: "0.5"
+          memory: "256Mi"
+
+            #local_registry:
+            #replica: 1
+            #disk:
+            #host: "100Gi"
+            #pv_mapper:
+            #- name: "0"
+            # size: "100Gi"
+            #hostPath: "/data1"
+            #nodeName: "e2e-102-161"
+            #nodeIP: "216.48.185.161"
+            #dirPath: "registry"
+        
+  # service information
+  services:
+    # longhorn
+    - name: "longhorn"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.5"
+          memory: "2Gi"
+      replica: 1
+      disk:
+        default: 2Gi
+
+    # minio-operator
+    - name: "minio-operator"
+      resource_limit:
+        min:
+          cpu: "0.2"
+          memory: "500Mi"
+        max:
+          cpu: "0.3"
+          memory: "1Gi"
+      replica: 1
+
+    # minio-tenant
+    - name: "minio-tenant"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.5"
+          memory: "1Gi"
+      replica: 1
+      disk:
+        host: 20Gi
+      pv_mapper:
+        - name: "minio-tenant"
+          size: "20Gi"
+          hostPath: "/data1"
+          nodeName: "karthik-1-ubuntu"
+          nodeIP: "172.23.0.8"
+          dirPath: "minio"
+          storageClass: "local-storage"
+
+    # postgresql
+    - name: "postgresql-ha"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.5"
+          memory: "2Gi"
+      replica: 3
+      disk:
+        host: 10Gi
+      pv_mapper:
+        - name: "0"
+          nodeName: "karthik-1-ubuntu"
+          hostPath: "/data1"
+          size: "10Gi"
+          storageClass: "local-storage"
+          dirPath: "postgresql-HA-0"
+          nodeIP: "172.23.0.8"
+        - name: "1"
+          nodeName: "karthik-2-ubuntu"
+          hostPath: "/data1"
+          size: "10Gi"
+          storageClass: "local-storage"
+          dirPath: "postgresql-HA-1"
+          nodeIP: "172.23.0.9"
+        - name: "2"
+          nodeName: "karthik-3-ubuntu"
+          hostPath: "/data1"
+          size: "10Gi"
+          storageClass: "local-storage"
+          dirPath: "postgresql-HA-2"
+          nodeIP: "172.23.0.11"
+
+    # kafka-broker
+    - name: "kafka-broker"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.75"
+          memory: "2Gi"
+      replica: 3
+      disk:
+        host: 5Gi
+      pv_mapper:
+        - name: "0"
+          size: "12Gi"
+          hostPath: "/data1"
+          nodeName: "karthik-1-ubuntu"
+          nodeIP: "172.23.0.8"
+          dirPath: "kafka_dir"
+        - name: "1"
+          size: "12Gi"
+          hostPath: "/data1"
+          nodeName: "karthik-2-ubuntu"
+          nodeIP: "172.23.0.9"
+          dirPath: "kafka_dir"
+        - name: "2"
+          size: "12Gi"
+          hostPath: "/data1"
+          nodeName: "karthik-3-ubuntu"
+          nodeIP: "172.23.0.11"
+          dirPath: "kafka_dir"
+
+      config_override:
+        advListener: "dnsname"      
+        domainName: "cs2ccloud.internal"  
+        commonfqdn: "vunet-datahub.cs2ccloud.internal" 
+        datahubNodes: [] 
+    
+    # kafka-zookeeper
+    - name: "kafka-zookeeper"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.75"
+          memory: "2Gi"
+      replica: 1
+      disk:
+        host: 4Gi
+      pv_mapper:
+        - name: "datalogdir-kafka-cluster-cp-zookeeper-0"
+          size: "5Gi"
+          storageClass: "local-storage"
+          hostPath: "/data1"
+          dirPath: "zookeeper-log"
+          nodeName: "karthik-1-ubuntu"
+          nodeIP: "172.23.0.8"
+        - name: "datadir-kafka-cluster-cp-zookeeper-0"
+          size: "5Gi"
+          storageClass: "local-storage"
+          hostPath: "/data1"
+          dirPath: "kafka_zookeeper_dir"
+          nodeName: "karthik-1-ubuntu"
+          nodeIP: "172.23.0.8"
+          
+    # kafka-connect
+    - name: "kafka-connect"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.5"
+          memory: "2Gi"
+      replica: 1
+
+    # clickhouse-operator
+    - name: "ch-operator"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.5"
+          memory: "2Gi"
+      replica: 1
+
+    # clickhouse-keeper
+    - name: "ch-keeper"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.5"
+          memory: "2Gi"
+      replica: 3
+      disk:
+        host: 5Gi
+      pv_mapper:
+        - name: "0"
+          size: "6Gi"
+          hostPath: "/data1"
+          nodeName: "karthik-1-ubuntu"
+          nodeIP: "172.23.0.8"
+          dirPath: "clickhouse-keeper"
+        - name: "1"
+          size: "6Gi"
+          hostPath: "/data1"
+          nodeName: "karthik-2-ubuntu"
+          nodeIP: "172.23.0.9"
+          dirPath: "clickhouse-keeper"
+        - name: "2"
+          size: "6Gi"
+          hostPath: "/data1"
+          nodeName: "karthik-3-ubuntu"
+          nodeIP: "172.23.0.11"
+          dirPath: "clickhouse-keeper"
+
+
+    # clickhouse database
+    - name: "ch-database"
+      resource_limit:
+        min:
+          cpu: "2"
+          memory: "500Mi"
+        max:
+          cpu: "4"
+          memory: "6Gi"
+      replica: 1
+      disk:
+        host: 5Gi
+      pv_mapper:
+        - name: "warm-chi-clickhouse-vusmart-0-0-0"
+          size: "12Gi"
+          hostPath: "/data1"
+          nodeName: "karthik-2-ubuntu"
+          nodeIP: "172.23.0.9"
+          dirPath: "clickhouse-warm"
+
+        - name: "clickhouse-data-volume-chi-clickhouse-vusmart-0-0-0"
+          size: "12Gi"
+          hostPath: "/data1"
+          nodeName: "karthik-2-ubuntu"
+          nodeIP: "172.23.0.9"
+          dirPath: "clickhouse"
+
+        - name: "warm-chi-clickhouse-vusmart-0-1-0"
+          size: "12Gi"
+          hostPath: "/data1"
+          nodeName: "karthik-3-ubuntu"
+          nodeIP: "172.23.0.11"
+          dirPath: "clickhouse-warm"
+
+        - name: "clickhouse-data-volume-chi-clickhouse-vusmart-0-1-0"
+          size: "12Gi"
+          hostPath: "/data1"
+          nodeName: "karthik-3-ubuntu"
+          nodeIP: "172.23.0.11"
+          dirPath: "clickhouse"
+
+      config_override:
+        persistence.host.encrypted: "true"
+        persistence.host.hot.enabled: "true"
+        #update this value to false, if WARM is disabled
+        persistence.host.warm.enabled: "true"
+        #update this value to false, if COLD is disabled
+        persistence.cold.enabled: "true"
+        replicaCount: 2
+
+    # telegraf-vusmart
+    - name: "telegraf-vusmart"
+      resource_limit:
+        min:
+          cpu: "0.1"
+          memory: "250Mi"
+        max:
+          cpu: "0.3"
+          memory: "500Mi"
+      replica: 1
+
+    # telegraf-infra
+    - name: "telegraf-infra"
+      resource_limit:
+        min:
+          cpu: "0.2"
+          memory: "250Mi"
+        max:
+          cpu: "0.5"
+          memory: "500Mi"
+      replica: 1
+
+    # redis
+    - name: "redis"
+      resource_limit:
+        min:
+          cpu: "0.2"
+          memory: "500Mi"
+        max:
+          cpu: "0.3"
+          memory: "2Gi"
+      replica: 1
+
+    # orchestration
+    - name: "orchestrator"
+      resource_limit:
+        min:
+          cpu: "0.1"
+          memory: "250Mi"
+        max:
+          cpu: "0.2"
+          memory: "500Mi"
+      replica: 1
+
+    # docusaurus
+    - name: "docusaurus"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.5"
+          memory: "1Gi"
+      replica: 1
+
+    # traefik
+    - name: "traefik"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.5"
+          memory: "2Gi"
+      replica: 1
+
+    # renderer-service
+    - name: "nairobi-renderer"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.5"
+          memory: "2Gi"
+      replica: 1
+
+    # reporter-service
+    - name: "nairobi-reporter"
+      resource_limit:
+        min:
+          cpu: "0.2"
+          memory: "500Mi"
+        max:
+          cpu: "0.3"
+          memory: "2Gi"
+      replica: 1
+
+    # nairobi
+    - name: "nairobi-app"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.5"
+          memory: "2Gi"
+      replica: 1
+      disk:
+        default: 2Gi
+      config_override:
+        address.public: "172.23.0.8/vui"
+
+    # keycloak
+    - name: "keycloak"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "2"
+          memory: "4Gi"
+      replica: 1
+
+    # denver
+    - name: "denver"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.5"
+          memory: "6Gi"
+      replica: 1
+
+    # vuinterface
+    - name: "vuinterface"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.5"
+          memory: "4Gi"
+      replica: 1
+      config_override:
+        env.0.value: "172.23.0.8"
+        env.1.value: "172.23.0.8"
+        env.2.value: "vunet-datahub.cs2ccloud.internal"
+        env.3.value: "default_encrypted_disk"
+        env.4.value: "warm_encrypted_disk"
+
+    # dao
+    - name: "dao"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.5"
+          memory: "4Gi"
+      replica: 1
+      config_override:
+        env.0.value: "172.23.0.8"
+        env.1.value: "172.23.0.8"
+        #Update the DISK Names accordingly as per HOT and WARM and update the disk name, if the encryption isn't enabled
+        env.2.value: "default_encrypted_disk"
+        env.3.value: "warm_encrypted_disk"
+        env.4.value: "vunet-datahub.cs2ccloud.internal"
+
+    # alert
+    - name: "alert"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.5"
+          memory: "1Gi"
+      replica: 1
+      config_override:
+        env.0.value: "172.23.0.8"
+        env.1.value: "172.23.0.8"
+        env.2.value: "vunet-datahub.cs2ccloud.internal"
+
+    #vublock-service
+    - name: "vublock"
+      resource_limit:
+        min:
+          cpu: "0.3"
+          memory: "500Mi"
+        max:
+          cpu: "0.5"
+          memory: "2Gi"
+      replica: 1
+
+    #vublock-store
+    - name: "vublock-store"
+      resource_limit:
+        min:
+          cpu: "0.2"
+          memory: "250Mi"
+        max:
+          cpu: "0.3"
+          memory: "500Mi"
+      replica: 1
+
+    # post-jobs
+    - name: "post-jobs"
+      resource_limit:
+        min:
+          cpu: "0.2"
+          memory: "250Mi"
+        max:
+          cpu: "0.3"
+          memory: "500Mi"
+      replica: 1
+
+    # alert-go
+    - name: "alert-go"
+      resource_limit:
+        min:
+          cpu: "0.2"
+          memory: "250Mi"
+        max:
+          cpu: "0.3"
+          memory: "500Mi"
+      replica: 1
+
+    # notification-service
+    - name: "notification-service"
+      resource_limit:
+        min:
+          cpu: "0.2"
+          memory: "250Mi"
+        max:
+          cpu: "0.3"
+          memory: "500Mi"
+      replica: 1
+
+    # omniagent
+    - name: "omniagent"
+      resource_limit:
+        min:
+          cpu: "0.2"
+          memory: "250Mi"
+        max:
+          cpu: "0.3"
+          memory: "500Mi"
+      replica: 1
+      config_override:
+        config.PLATFORM_HOST: "172.23.0.8"

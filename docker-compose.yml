@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  ansible-installer:
+    build: .
+    container_name: ansible-installer
+    restart: always
+    ports:
+      - "8086:9091" # Accessible externally via NodePort-like setup
+    environment:
+      - PORT=9091
+    volumes:
+      - .:/opt/installer # Mirror local directory to /opt/installer (for DB and playbooks)
+      - /home/vunet/.ssh:/root/.ssh:ro # Mount host's SSH keys for Ansible
+
+    # Keep logs outside container for easy access
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+

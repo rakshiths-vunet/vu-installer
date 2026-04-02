@@ -1,0 +1,144 @@
+[WARNING]: Invalid characters were found in group names but not replaced, use
+-vvvv to see details
+
+PLAY [One-Touch vuSmartMaps Installation] **************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [vm-603]
+ok: [vm-604]
+ok: [vm-605]
+
+TASK [vusmartmaps : Update /etc/hosts for Datahub] *****************************
+ok: [vm-603]
+ok: [vm-605]
+ok: [vm-604]
+
+TASK [vusmartmaps : Create 'vunet' group] **************************************
+ok: [vm-603]
+ok: [vm-604]
+ok: [vm-605]
+
+TASK [vusmartmaps : Create 'vunet' user] ***************************************
+ok: [vm-603]
+ok: [vm-604]
+ok: [vm-605]
+
+TASK [vusmartmaps : Fetch public keys from all nodes] **************************
+ok: [vm-603]
+ok: [vm-605]
+ok: [vm-604]
+
+TASK [vusmartmaps : Add public keys to authorized_keys on all nodes] ***********
+ok: [vm-605] => (item=vm-603)
+ok: [vm-605] => (item=vm-604)
+ok: [vm-605] => (item=vm-605)
+ok: [vm-604] => (item=vm-603)
+ok: [vm-603] => (item=vm-603)
+ok: [vm-604] => (item=vm-604)
+ok: [vm-603] => (item=vm-604)
+ok: [vm-604] => (item=vm-605)
+ok: [vm-603] => (item=vm-605)
+
+TASK [vusmartmaps : Setup SSH known_hosts for internal access] *****************
+ok: [vm-603] => (item=vm-603)
+ok: [vm-604] => (item=vm-603)
+ok: [vm-605] => (item=vm-603)
+ok: [vm-603] => (item=vm-604)
+ok: [vm-604] => (item=vm-604)
+ok: [vm-605] => (item=vm-604)
+ok: [vm-603] => (item=vm-605)
+ok: [vm-604] => (item=vm-605)
+ok: [vm-605] => (item=vm-605)
+
+TASK [vusmartmaps : Ensure correct permissions on .ssh] ************************
+ok: [vm-604]
+ok: [vm-603]
+ok: [vm-605]
+
+TASK [vusmartmaps : Create Data Directory] *************************************
+ok: [vm-603]
+ok: [vm-604]
+ok: [vm-605]
+
+TASK [vusmartmaps : Apply Sysctl settings] *************************************
+ok: [vm-604] => (item=fs.inotify.max_user_watches)
+ok: [vm-605] => (item=fs.inotify.max_user_watches)
+ok: [vm-603] => (item=fs.inotify.max_user_watches)
+ok: [vm-603] => (item=fs.inotify.max_user_instances)
+ok: [vm-604] => (item=fs.inotify.max_user_instances)
+ok: [vm-605] => (item=fs.inotify.max_user_instances)
+ok: [vm-603] => (item=fs.inotify.max_queued_events)
+ok: [vm-604] => (item=fs.inotify.max_queued_events)
+ok: [vm-605] => (item=fs.inotify.max_queued_events)
+
+TASK [vusmartmaps : Copy and Configure Sizing Template for 3Node 3.0] **********
+ok: [vm-604]
+ok: [vm-603]
+ok: [vm-605]
+
+TASK [vusmartmaps : Copy and Configure Sizing Template for 3.0] ****************
+skipping: [vm-603]
+skipping: [vm-604]
+skipping: [vm-605]
+
+TASK [vusmartmaps : Copy and Configure Sizing Template for 2.16] ***************
+skipping: [vm-603]
+skipping: [vm-604]
+skipping: [vm-605]
+
+TASK [vusmartmaps : Copy and Configure Sizing Template for 2.15] ***************
+skipping: [vm-603]
+skipping: [vm-604]
+skipping: [vm-605]
+
+TASK [vusmartmaps : Download vuSmartMaps Tarball] ******************************
+skipping: [vm-604]
+skipping: [vm-605]
+ok: [vm-603]
+
+TASK [vusmartmaps : Log download status] ***************************************
+ok: [vm-603] => {
+    "msg": "Download task completed. Last 20 lines of wget output shown above."
+}
+skipping: [vm-604]
+skipping: [vm-605]
+
+TASK [vusmartmaps : Extract Tarball] *******************************************
+skipping: [vm-604]
+skipping: [vm-605]
+ok: [vm-603]
+
+TASK [vusmartmaps : Log extraction status] *************************************
+skipping: [vm-604]
+skipping: [vm-605]
+changed: [vm-603]
+
+TASK [vusmartmaps : Determine expected final target directory] *****************
+ok: [vm-603]
+ok: [vm-604]
+ok: [vm-605]
+
+TASK [vusmartmaps : Check if expected final target directory exists] ***********
+ok: [vm-603]
+ok: [vm-604]
+ok: [vm-605]
+
+TASK [vusmartmaps : Set final_target_dir (fallback to target_dir if missing)] ***
+ok: [vm-603]
+ok: [vm-604]
+ok: [vm-605]
+
+TASK [vusmartmaps : Run Installer] *********************************************
+skipping: [vm-604]
+skipping: [vm-605]
+fatal: [vm-603]: FAILED! => {"changed": false, "msg": "async task did not complete within the requested time - 3600s"}
+
+TASK [vusmartmaps : Verify Installation Success] *******************************
+skipping: [vm-604]
+skipping: [vm-605]
+
+PLAY RECAP *********************************************************************
+vm-603                     : ok=18   changed=1    unreachable=0    failed=1    skipped=3    rescued=0    ignored=0   
+vm-604                     : ok=14   changed=0    unreachable=0    failed=0    skipped=9    rescued=0    ignored=0   
+vm-605                     : ok=14   changed=0    unreachable=0    failed=0    skipped=9    rescued=0    ignored=0   
+

@@ -1,8 +1,4 @@
 ---
-- name: Set Hostname
-  hostname:
-    name: "{{ node_hostname }}"
-
 - name: Update /etc/hosts for Datahub
   lineinfile:
     path: /etc/hosts
@@ -23,13 +19,38 @@
     ssh_key_file: .ssh/id_rsa
     shell: /bin/bash
 
-- name: Setup SSH Authorization (cat id_rsa.pub >> authorized_keys)
+- name: Fetch public keys from all nodes
+  shell: cat /home/{{ vunet_user }}/.ssh/id_rsa.pub
+  register: public_keys
+  changed_when: false
+  become_user: "{{ vunet_user }}"
+
+- name: Add public keys to authorized_keys on all nodes
+  authorized_key:
+    user: "{{ vunet_user }}"
+    key: "{{ hostvars[item].public_keys.stdout }}"
+    state: present
+  loop: "{{ groups[node_name] | default([inventory_hostname]) }}"
+  when: hostvars[item].public_keys is defined
+  become_user: "{{ vunet_user }}"
+
+- name: Setup SSH known_hosts for internal access
   shell: |
-    cat /home/{{ vunet_user }}/.ssh/id_rsa.pub >> /home/{{ vunet_user }}/.ssh/authorized_keys
-    cat /home/{{ vunet_user }}/.ssh/id_rsa.pub >> /home/{{ vunet_user }}/.ssh/known_hosts
-    chown -R {{ vunet_user }}:vunet /home/{{ vunet_user }}/.ssh
+    ssh-keyscan -H {{ hostvars[item].ansible_host | default(item) }} >> /home/{{ vunet_user }}/.ssh/known_hosts
+  loop: "{{ groups[node_name] | default([inventory_hostname]) }}"
+  become_user: "{{ vunet_user }}"
   args:
     executable: /bin/bash
+  changed_when: false
+
+- name: Ensure correct permissions on .ssh
+  file:
+    path: /home/{{ vunet_user }}/.ssh
+    state: directory
+    owner: "{{ vunet_user }}"
+    group: vunet
+    mode: '0700'
+    recurse: yes
 
 - name: Create Data Directory
   file:

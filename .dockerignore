@@ -1,0 +1,10 @@
+.git/
+.vscode/
+ansible
+installer
+*.db
+*.log
+inventory_*.ini
+node_modules/
+dist/
+tmp/

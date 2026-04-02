@@ -1,6 +1,15 @@
 ---
 - import_tasks: prereqs.yml
 
+- name: Copy and Configure Sizing Template for 3Node 3.0
+  template:
+    src: "3node3.0-sizing.j2"
+    dest: "{{ target_dir }}/sizing-validation.yaml"
+    owner: "{{ vunet_user }}"
+    group: "vunet"
+    mode: '0644'
+  when: version == "3node3.0"
+
 - name: Copy and Configure Sizing Template for 3.0
   template:
     src: "sizing.j2"
@@ -30,45 +39,63 @@
 
 - name: Download vuSmartMaps Tarball
   shell: |
-    {% if version == "3.0" %}
+    {% if version == "3.0" or version == "3node3.0" %}
     wget --user={{ download_user }} --password={{ download_pass }} --no-check-certificate -O {{ target_dir }}/vuSmartMaps_offline_NG-3.0.tar.gz https://download.vunetsystems.com/_Downloads_/_vuDocker_/3.0/vuSmartMaps_offline_NG-3.0.tar.gz
     {% else %}
     wget --user={{ download_user }} --password={{ download_pass }} --no-check-certificate -O {{ target_dir }}/vuSmartMaps_offline_NG-{{ version }}.tar.gz https://download.vunetsystems.com/_Downloads_/_vuDocker_/{{ version }}/vuSmartMaps_offline_NG-{{ version }}.tar.gz
     {% endif %}
   args:
-    creates: "{{ target_dir }}/vuSmartMaps_offline_NG-{{ version }}.tar.gz"
+    creates: "{{ target_dir }}/vuSmartMaps_offline_NG-{{ '3.0' if version == '3node3.0' else version }}.tar.gz"
+  when: version != "3node3.0" or (ansible_host == ip1)
 
 - name: Log download status
   debug:
     msg: "Download task completed. Last 20 lines of wget output shown above."
+  when: version != "3node3.0" or (ansible_host == ip1)
 
 - name: Extract Tarball
   unarchive:
-    src: "{{ target_dir }}/vuSmartMaps_offline_NG-{{ version }}.tar.gz"
+    src: "{{ target_dir }}/vuSmartMaps_offline_NG-{{ '3.0' if version == '3node3.0' else version }}.tar.gz"
     dest: "{{ target_dir }}/"
     remote_src: yes
     owner: "{{ vunet_user }}"
     group: "vunet"
+  when: version != "3node3.0" or (ansible_host == ip1)
 
 - name: Log extraction status
   shell: echo "Tarball extraction completed."
   args:
     chdir: "{{ target_dir }}"
+  when: version != "3node3.0" or (ansible_host == ip1)
+
+- name: Determine expected final target directory
+  set_fact:
+    expected_final_dir: "{{ target_dir }}/vuSmartMaps_offline_NG-{{ '3.0' if version == '3node3.0' else version }}"
+
+- name: Check if expected final target directory exists
+  stat:
+    path: "{{ expected_final_dir }}"
+  register: dir_stat
+
+- name: Set final_target_dir (fallback to target_dir if missing)
+  set_fact:
+    final_target_dir: "{{ expected_final_dir if dir_stat.stat.exists else target_dir }}"
 
 - name: Run Installer
   shell: |
     ./build/launcher_linux_x86 \
-      --sizing ./sizing-validation.yaml \
+      --sizing {{ target_dir }}/sizing-validation.yaml \
       --ignore-preflight \
       --debug > install_log.txt 2>&1
   args:
-    chdir: "{{ target_dir }}"
+    chdir: "{{ final_target_dir }}"
   environment:
     username: "{{ vunet_user }}"
     private_key_path: ".ssh/id_rsa"
   become_user: "{{ vunet_user }}" # Run as vunet user
   async: 3600
   poll: 10
+  when: version != "3node3.0" or (ansible_host == ip1)
 
 - name: Verify Installation Success
   shell: |
@@ -81,7 +108,8 @@
       exit 1
     fi
   args:
-    chdir: "{{ target_dir }}"
+    chdir: "{{ final_target_dir }}"
   become_user: "{{ vunet_user }}"
   register: install_result
   failed_when: install_result.rc != 0
+  when: version != "3node3.0" or (ansible_host == ip1)

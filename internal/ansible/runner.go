@@ -22,8 +22,8 @@ type Runner struct {
 	UpdateTasks   func(nodeName string, tasks []state.Task)
 }
 
-func (r *Runner) GenerateInventory(nodeName, ip, user, keyPath string) error {
-	log.WithFields(log.Fields{"node": nodeName, "ip": ip}).Info("Generating Ansible inventory")
+func (r *Runner) GenerateInventory(nodeName, ip, user, keyPath, version, ip1, ip2, ip3, vmname1, vmname2, vmname3 string) error {
+	log.WithFields(log.Fields{"node": nodeName, "ip": ip, "version": version}).Info("Generating Ansible inventory")
 
 	// Create unique inventory filename
 	inventoryFile := fmt.Sprintf("inventory_%s.ini", nodeName)
@@ -34,8 +34,16 @@ func (r *Runner) GenerateInventory(nodeName, ip, user, keyPath string) error {
 		return err
 	}
 
-	content := fmt.Sprintf("[%s]\n%s ansible_user=%s ansible_ssh_private_key_file=%s ansible_ssh_common_args='-o StrictHostKeyChecking=no'\n",
-		nodeName, ip, user, keyPath)
+	var content string
+	if version == "3node3.0" {
+		content = fmt.Sprintf("[%s]\n", nodeName)
+		content += fmt.Sprintf("%s ansible_host=%s ansible_user=%s ansible_ssh_private_key_file=%s node_hostname=%s ansible_ssh_common_args='-o StrictHostKeyChecking=no'\n", vmname1, ip1, user, keyPath, vmname1)
+		content += fmt.Sprintf("%s ansible_host=%s ansible_user=%s ansible_ssh_private_key_file=%s node_hostname=%s ansible_ssh_common_args='-o StrictHostKeyChecking=no'\n", vmname2, ip2, user, keyPath, vmname2)
+		content += fmt.Sprintf("%s ansible_host=%s ansible_user=%s ansible_ssh_private_key_file=%s node_hostname=%s ansible_ssh_common_args='-o StrictHostKeyChecking=no'\n", vmname3, ip3, user, keyPath, vmname3)
+	} else {
+		content = fmt.Sprintf("[%s]\n%s ansible_host=%s ansible_user=%s ansible_ssh_private_key_file=%s node_hostname=%s ansible_ssh_common_args='-o StrictHostKeyChecking=no'\n",
+			nodeName, nodeName, ip, user, keyPath, nodeName)
+	}
 
 	err := os.WriteFile(inventoryFile, []byte(content), 0644)
 	if err != nil {
@@ -46,10 +54,10 @@ func (r *Runner) GenerateInventory(nodeName, ip, user, keyPath string) error {
 	return err
 }
 
-func (r *Runner) Run(nodeName, ip, version, startAtTask string) error {
+func (r *Runner) Run(nodeName, ip, version, startAtTask, ip1, ip2, ip3, vmname1, vmname2, vmname3 string) error {
 	log.WithFields(log.Fields{"node": nodeName, "ip": ip, "version": version, "start_at": startAtTask}).Info("Starting Ansible playbook execution")
 	// Pass Go variables to Ansible as Extra Vars
-	extraVars := fmt.Sprintf("private_ip=%s node_hostname=%s version=%s", ip, nodeName, version)
+	extraVars := fmt.Sprintf("private_ip=%s node_name=%s version=%s ip1=%s ip2=%s ip3=%s vmname1=%s vmname2=%s vmname3=%s", ip, nodeName, version, ip1, ip2, ip3, vmname1, vmname2, vmname3)
 
 	// Open log file for Ansible output
 	logFile, err := os.Create(fmt.Sprintf("ansible_%s.log", nodeName))

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"vu-installer/internal/ansible"
@@ -19,6 +20,12 @@ type InstallRequest struct {
 	User    string `json:"user"`
 	Key     string `json:"key"`
 	Version string `json:"version"`
+	IP1     string `json:"ip1"`
+	IP2     string `json:"ip2"`
+	IP3     string `json:"ip3"`
+	VMName1 string `json:"vmname1"`
+	VMName2 string `json:"vmname2"`
+	VMName3 string `json:"vmname3"`
 }
 
 type InstallResponse struct {
@@ -182,7 +189,11 @@ func main() {
 
 		// Set default SSH key if not provided
 		if req.Key == "" {
-			req.Key = "~/.ssh/id_rsa"
+			home, _ := os.UserHomeDir()
+			req.Key = filepath.Join(home, ".ssh", "id_ed25519")
+			if _, err := os.Stat(req.Key); err != nil {
+				req.Key = filepath.Join(home, ".ssh", "id_rsa")
+			}
 		}
 
 		// Set default user if not provided
@@ -233,6 +244,12 @@ func main() {
 			StartTime: sql.NullTime{Time: time.Now(), Valid: true},
 			Tasks:     sql.NullString{String: "[]", Valid: true},
 			Locked:    true,
+			IP1:       sql.NullString{String: req.IP1, Valid: true},
+			IP2:       sql.NullString{String: req.IP2, Valid: true},
+			IP3:       sql.NullString{String: req.IP3, Valid: true},
+			VMName1:   sql.NullString{String: req.VMName1, Valid: true},
+			VMName2:   sql.NullString{String: req.VMName2, Valid: true},
+			VMName3:   sql.NullString{String: req.VMName3, Valid: true},
 		}
 		if err := state.Save(s); err != nil {
 			log.WithError(err).Error("Failed to save state")
@@ -246,7 +263,7 @@ func main() {
 			defer state.UnlockNode(req.Name)
 
 			// Generate inventory
-			if err := runner.GenerateInventory(req.Name, req.IP, req.User, req.Key); err != nil {
+			if err := runner.GenerateInventory(req.Name, req.IP, req.User, req.Key, req.Version, req.IP1, req.IP2, req.IP3, req.VMName1, req.VMName2, req.VMName3); err != nil {
 				log.WithError(err).Error("Failed to generate inventory")
 				s.Status = sql.NullString{String: "FAILED", Valid: true}
 				s.ErrorMsg = sql.NullString{String: err.Error(), Valid: true}
@@ -255,7 +272,7 @@ func main() {
 			}
 
 			// Run playbook
-			if err := runner.Run(req.Name, req.IP, req.Version, ""); err != nil {
+			if err := runner.Run(req.Name, req.IP, req.Version, "", req.IP1, req.IP2, req.IP3, req.VMName1, req.VMName2, req.VMName3); err != nil {
 				log.WithError(err).Error("Playbook failed")
 				s.Status = sql.NullString{String: "FAILED", Valid: true}
 				s.ErrorMsg = sql.NullString{String: err.Error(), Valid: true}
@@ -347,7 +364,7 @@ func main() {
 			defer state.UnlockNode(req.Name)
 
 			// Generate inventory
-			if err := runner.GenerateInventory(req.Name, s.IP.String, s.User.String, s.Key.String); err != nil {
+			if err := runner.GenerateInventory(req.Name, s.IP.String, s.User.String, s.Key.String, s.Version.String, s.IP1.String, s.IP2.String, s.IP3.String, s.VMName1.String, s.VMName2.String, s.VMName3.String); err != nil {
 				log.WithError(err).Error("Failed to generate inventory")
 				s.Status = sql.NullString{String: "FAILED", Valid: true}
 				s.ErrorMsg = sql.NullString{String: err.Error(), Valid: true}
@@ -370,7 +387,7 @@ func main() {
 			}
 
 			// Run playbook
-			if err := runner.Run(req.Name, s.IP.String, s.Version.String, startAt); err != nil {
+			if err := runner.Run(req.Name, s.IP.String, s.Version.String, startAt, s.IP1.String, s.IP2.String, s.IP3.String, s.VMName1.String, s.VMName2.String, s.VMName3.String); err != nil {
 				log.WithError(err).Error("Playbook failed")
 				s.Status = sql.NullString{String: "FAILED", Valid: true}
 				s.ErrorMsg = sql.NullString{String: err.Error(), Valid: true}

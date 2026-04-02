@@ -157,3 +157,30 @@ curl -k -H "Host: portal.vunetlocalserver.com" \
   "message": "Retry started"
 }
 ```
+
+---
+
+### 6. Install 3-Node Cluster (Version 3node3.0)
+Trigger a 3-node cluster installation. Prereqs will be run on all nodes, but the main installer runs on the primary node (specified by `ip1`).
+
+**Command:**
+```bash
+curl -k -H "Host: portal.vunetlocalserver.com" \
+-H "Content-Type: application/json" \
+-X POST \
+-d '{
+    "name": "cluster-deployment",
+    "version": "3node3.0",
+    "ip": "172.23.0.8",
+    "ip1": "172.23.0.8",
+    "ip2": "172.23.0.9",
+    "ip3": "172.23.0.11",
+    "vmname1": "karthik-1-ubuntu",
+    "vmname2": "karthik-2-ubuntu",
+    "vmname3": "karthik-3-ubuntu",
+    "user": "vunet"
+}' \
+"http://10.1.92.30:8086/ansible/install"
+```
+
+**Expected Outcome:** Same as single node installation.
