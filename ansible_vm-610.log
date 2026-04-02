@@ -1,0 +1,79 @@
+[WARNING]: Invalid characters were found in group names but not replaced, use
+-vvvv to see details
+[WARNING]: Found both group and host with same name: vm-610
+
+PLAY [One-Touch vuSmartMaps Installation] **************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [vm-610]
+
+TASK [vusmartmaps : Update /etc/hosts for Datahub] *****************************
+ok: [vm-610]
+
+TASK [vusmartmaps : Create 'vunet' group] **************************************
+ok: [vm-610]
+
+TASK [vusmartmaps : Create 'vunet' user] ***************************************
+ok: [vm-610]
+
+TASK [vusmartmaps : Fetch public keys from all nodes] **************************
+ok: [vm-610]
+
+TASK [vusmartmaps : Add public keys to authorized_keys on all nodes] ***********
+ok: [vm-610] => (item=vm-610)
+
+TASK [vusmartmaps : Setup SSH known_hosts for internal access] *****************
+ok: [vm-610] => (item=vm-610)
+
+TASK [vusmartmaps : Ensure correct permissions on .ssh] ************************
+ok: [vm-610]
+
+TASK [vusmartmaps : Create Data Directory] *************************************
+ok: [vm-610]
+
+TASK [vusmartmaps : Apply Sysctl settings] *************************************
+ok: [vm-610] => (item=fs.inotify.max_user_watches)
+ok: [vm-610] => (item=fs.inotify.max_user_instances)
+ok: [vm-610] => (item=fs.inotify.max_queued_events)
+
+TASK [vusmartmaps : Copy and Configure Sizing Template for 3Node 3.0] **********
+skipping: [vm-610]
+
+TASK [vusmartmaps : Copy and Configure Sizing Template for 3.0] ****************
+skipping: [vm-610]
+
+TASK [vusmartmaps : Copy and Configure Sizing Template for 2.16] ***************
+changed: [vm-610]
+
+TASK [vusmartmaps : Copy and Configure Sizing Template for 2.15] ***************
+skipping: [vm-610]
+
+TASK [vusmartmaps : Download vuSmartMaps Tarball] ******************************
+ok: [vm-610]
+
+TASK [vusmartmaps : Log download status] ***************************************
+ok: [vm-610] => {
+    "msg": "Download task completed. Last 20 lines of wget output shown above."
+}
+
+TASK [vusmartmaps : Extract Tarball] *******************************************
+changed: [vm-610]
+
+TASK [vusmartmaps : Log extraction status] *************************************
+changed: [vm-610]
+
+TASK [vusmartmaps : Determine expected final target directory] *****************
+ok: [vm-610]
+
+TASK [vusmartmaps : Check if expected final target directory exists] ***********
+ok: [vm-610]
+
+TASK [vusmartmaps : Set final_target_dir (fallback to target_dir if missing)] ***
+ok: [vm-610]
+
+TASK [vusmartmaps : Run Installer] *********************************************
+fatal: [vm-610]: FAILED! => {"ansible_job_id": "808479870581.15348", "changed": true, "cmd": "./build/launcher_linux_x86  --sizing /home/vunet/sizing-validation.yaml  --ignore-preflight  --debug > install_log.txt 2>&1\n", "delta": "0:00:22.888791", "end": "2026-04-01 11:06:14.796843", "finished": 1, "msg": "non-zero return code", "rc": 1, "start": "2026-04-01 11:05:51.908052", "stderr": "", "stderr_lines": [], "stdout": "", "stdout_lines": []}
+
+PLAY RECAP *********************************************************************
+vm-610                     : ok=18   changed=3    unreachable=0    failed=1    skipped=3    rescued=0    ignored=0   
+

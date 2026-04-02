@@ -120,3 +120,6 @@ The service will:
 1.  Tasks are defined in `playbooks/roles/vusmartmaps/tasks/`.
 2.  Go application logic is in `cmd/` and `internal/`.
 3.  Ensure database schema changes are reflected in `internal/state/manager.go`.
+
+---
+*Crafted with 💖 by **Sid & Team***

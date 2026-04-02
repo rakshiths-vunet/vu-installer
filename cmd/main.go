@@ -44,6 +44,7 @@ func main() {
 		log.WithError(err).Fatal("Failed to initialize database")
 	}
 	log.Info("Database initialized")
+	log.Info("Made by Sid & Team - vU-Installer Core")
 
 	// Ansible runner
 	runner := &ansible.Runner{
@@ -129,7 +130,8 @@ func main() {
 		}
 
 		response := map[string]string{
-			"status": "healthy",
+			"status":    "healthy",
+			"developer": "Sid & Team",
 		}
 
 		w.Header().Set("Content-Type", "application/json")

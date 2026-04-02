@@ -33,7 +33,8 @@ curl -k -H "Host: portal.vunetlocalserver.com" \
 **Expected Outcome:**
 ```json
 {
-  "status": "healthy"
+  "status": "healthy",
+  "developer": "Sid & Team"
 }
 ```
 
@@ -184,3 +185,6 @@ curl -k -H "Host: portal.vunetlocalserver.com" \
 ```
 
 **Expected Outcome:** Same as single node installation.
+
+---
+*Maintained by **Sid & Team***
